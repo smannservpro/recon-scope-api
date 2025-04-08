@@ -20,19 +20,20 @@ sheet = client.open_by_url(SHEET_URL)
 worksheet = sheet.worksheet("Data Pull")
 rows = worksheet.get_all_records()
 
+# Adjusted for new column order: Description is now first
 data = []
 for row in rows:
-    if row["Category"] and row["Selection"] and row["Description"] and row["Unit"]:
-        description_clean = re.sub(r'[^a-z0-9\s]', '', str(row["Description"]).lower().replace('"', '').replace("'", ''))
+    if row["Description"] and row["Category"] and row["Selection"] and row["Unit"]:
+        description = str(row["Description"]).strip()
         data.append({
+            "description": description,
+            "description_clean": re.sub(r'[^a-z0-9\s]', '', description.lower().replace('"', '').replace("'", '')),
             "category": str(row["Category"]).strip().lower(),
             "selection": str(row["Selection"]).strip().lower(),
-            "description": str(row["Description"]).strip(),
-            "unit": str(row["Unit"]).strip(),
-            "description_clean": description_clean
+            "unit": str(row["Unit"]).strip()
         })
 
-# Typical related item keywords
+# Related keywords to look for
 related_keywords = {
     "sink": ["p-trap", "supply line", "stop valve"],
     "cabinet": ["toe kick"],
@@ -48,9 +49,9 @@ def scope():
     quantity = req.get("quantity", "1")
     action = req.get("action", "+")
 
-    # Normalize user input
+    # Clean and normalize user input
     user_input_clean = re.sub(r'[^a-z0-9\s]', '', user_input)
-    user_keywords = user_input_clean.lower().split()
+    user_keywords = user_input_clean.split()
 
     normalized_keywords = []
     for kw in user_keywords:
@@ -101,3 +102,4 @@ def scope():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)
+ 
