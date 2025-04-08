@@ -29,12 +29,12 @@ data = []
 for row in rows:
     if row["Category"] and row["Selection"] and row["Description"] and row["Unit"]:
         data.append({
-            "category": row["Category"].strip().lower(),
-            "selection": row["Selection"].strip().lower(),
-            "description": row["Description"].strip(),
-            "unit": row["Unit"].strip(),
-            "description_clean": re.sub(r'[^\w\s]', '', row["Description"].lower())
-        })
+    "category": str(row["Category"]).strip().lower(),
+    "selection": str(row["Selection"]).strip().lower(),
+    "description": str(row["Description"]).strip(),
+    "unit": str(row["Unit"]).strip(),
+    "description_clean": re.sub(r'[^\w\s]', '', str(row["Description"]).lower())
+})
 
 related_keywords = {
     "sink": ["p-trap", "supply line", "stop valve"],
