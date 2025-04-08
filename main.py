@@ -2,20 +2,15 @@ from flask import Flask, request, jsonify
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import re
+import os
+import json
 
 app = Flask(__name__)
 
 # Google Sheets setup
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-import os
-import json
-from oauth2client.service_account import ServiceAccountCredentials
-
-# Load JSON credentials from environment variable
 creds_json = os.environ.get("GOOGLE_CREDENTIALS_JSON")
 credentials_dict = json.loads(creds_json)
-
-scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 creds = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, scope)
 
 client = gspread.authorize(creds)
@@ -29,13 +24,14 @@ data = []
 for row in rows:
     if row["Category"] and row["Selection"] and row["Description"] and row["Unit"]:
         data.append({
-    "category": str(row["Category"]).strip().lower(),
-    "selection": str(row["Selection"]).strip().lower(),
-    "description": str(row["Description"]).strip(),
-    "unit": str(row["Unit"]).strip(),
-    "description_clean": re.sub(r'[^\w\s]', '', str(row["Description"]).lower())
-})
+            "category": str(row["Category"]).strip().lower(),
+            "selection": str(row["Selection"]).strip().lower(),
+            "description": str(row["Description"]).strip(),
+            "unit": str(row["Unit"]).strip(),
+            "description_clean": re.sub(r'[^\w\s]', '', str(row["Description"]).lower())
+        })
 
+# Typical related item keywords
 related_keywords = {
     "sink": ["p-trap", "supply line", "stop valve"],
     "cabinet": ["toe kick"],
@@ -61,19 +57,19 @@ def scope():
         })
 
     if len(matches) > 1:
-        options = [
-            f"({action}) {m['category'].upper()} {m['selection'].upper()} – {m['description']} – {quantity} {m['unit'].upper()}"
-            for m in matches
-        ]
+        options = matches[:5]  # Limit to top 5 matches
         return jsonify({
-            "matched_scope_item": "Multiple matches found. Please clarify:\n" + "\n".join(options),
-            "related_items": []
+            "matched_scope_item": "Multiple matches found. Please clarify material, size, or description. Top 5 possible matches:",
+            "related_items": [
+                f"({action}) {m['category'].upper()} {m['selection'].upper()} – {m['description']} – {quantity} {m['unit'].upper()}"
+                for m in options
+            ]
         })
 
     match = matches[0]
     matched_line = f"({action}) {match['category'].upper()} {match['selection'].upper()} – {match['description']} – {quantity} {match['unit'].upper()}"
 
-    # Generate related items (clean formatting)
+    # Related items — capped at 5 for safety
     keyword = user_input.split()[0]
     related = []
     for kw in related_keywords.get(keyword, []):
@@ -81,12 +77,12 @@ def scope():
             f"(+) {r['category'].upper()} {r['selection'].upper()} – {r['description']} – 1 {r['unit'].upper()}"
             for r in data if kw in r["description_clean"]
         ]
+    related = related[:5]  # Limit to 5 suggestions
 
     return jsonify({
         "matched_scope_item": matched_line,
         "related_items": related
     })
-
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)
