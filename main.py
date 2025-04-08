@@ -61,27 +61,32 @@ def scope():
         })
 
     if len(matches) > 1:
+        options = [
+            f"({action}) {m['category'].upper()} {m['selection'].upper()} – {m['description']} – {quantity} {m['unit'].upper()}"
+            for m in matches
+        ]
         return jsonify({
-            "matched_scope_item": "Multiple matches:\n" + "\n".join(
-                [f"{m['category']} {m['selection']}: {m['description']}" for m in matches]
-            ),
+            "matched_scope_item": "Multiple matches found. Please clarify:\n" + "\n".join(options),
             "related_items": []
         })
 
     match = matches[0]
-    matched = f"({action}) {match['category'].upper()} {match['selection'].upper()} – {match['description']} – {quantity} {match['unit'].upper()}"
+    matched_line = f"({action}) {match['category'].upper()} {match['selection'].upper()} – {match['description']} – {quantity} {match['unit'].upper()}"
 
+    # Generate related items (clean formatting)
+    keyword = user_input.split()[0]
     related = []
-    for keyword in related_keywords.get(user_input.split()[0], []):
+    for kw in related_keywords.get(keyword, []):
         related += [
-            f"{r['category'].upper()} {r['selection'].upper()} – {r['description']} ({r['unit']})"
-            for r in data if keyword in r["description_clean"]
+            f"(+) {r['category'].upper()} {r['selection'].upper()} – {r['description']} – 1 {r['unit'].upper()}"
+            for r in data if kw in r["description_clean"]
         ]
 
     return jsonify({
-        "matched_scope_item": matched,
+        "matched_scope_item": matched_line,
         "related_items": related
     })
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)
