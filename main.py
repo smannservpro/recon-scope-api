@@ -7,7 +7,17 @@ app = Flask(__name__)
 
 # Google Sheets setup
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
+import os
+import json
+from oauth2client.service_account import ServiceAccountCredentials
+
+# Load JSON credentials from environment variable
+creds_json = os.environ.get("GOOGLE_CREDENTIALS_JSON")
+credentials_dict = json.loads(creds_json)
+
+scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+creds = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, scope)
+
 client = gspread.authorize(creds)
 
 SHEET_URL = "https://docs.google.com/spreadsheets/d/1_ZUG0tYgooafAtuXjZSVdt3XMFUHail67ts5Wy31A_U"
