@@ -23,12 +23,13 @@ rows = worksheet.get_all_records()
 data = []
 for row in rows:
     if row["Category"] and row["Selection"] and row["Description"] and row["Unit"]:
+        description_clean = re.sub(r'[^a-z0-9\s]', '', str(row["Description"]).lower().replace('"', '').replace("'", ''))
         data.append({
             "category": str(row["Category"]).strip().lower(),
             "selection": str(row["Selection"]).strip().lower(),
             "description": str(row["Description"]).strip(),
             "unit": str(row["Unit"]).strip(),
-            "description_clean": re.sub(r'[^\w\s]', '', str(row["Description"]).lower())
+            "description_clean": description_clean
         })
 
 # Typical related item keywords
@@ -47,8 +48,23 @@ def scope():
     quantity = req.get("quantity", "1")
     action = req.get("action", "+")
 
-    words = re.sub(r"[^\w\s]", "", user_input).split()
-    matches = [row for row in data if any(word in row["description_clean"] for word in words)]
+    # Normalize user input
+    user_input_clean = re.sub(r'[^a-z0-9\s]', '', user_input)
+    user_keywords = user_input_clean.lower().split()
+
+    normalized_keywords = []
+    for kw in user_keywords:
+        if kw in {"base", "baseboard", "trim"}:
+            normalized_keywords.append("baseboard")
+        elif kw in {"3.25", "3 1/4", "three and a quarter", "3-1/4", "three-quarter"}:
+            normalized_keywords.append("3 1/4")
+        else:
+            normalized_keywords.append(kw)
+
+    matches = [
+        row for row in data
+        if any(kw in row["description_clean"] for kw in normalized_keywords)
+    ]
 
     if not matches:
         return jsonify({
@@ -57,7 +73,7 @@ def scope():
         })
 
     if len(matches) > 1:
-        options = matches[:5]  # Limit to top 5 matches
+        options = matches[:5]
         return jsonify({
             "matched_scope_item": "Multiple matches found. Please clarify material, size, or description. Top 5 possible matches:",
             "related_items": [
@@ -69,7 +85,6 @@ def scope():
     match = matches[0]
     matched_line = f"({action}) {match['category'].upper()} {match['selection'].upper()} – {match['description']} – {quantity} {match['unit'].upper()}"
 
-    # Related items — capped at 5 for safety
     keyword = user_input.split()[0]
     related = []
     for kw in related_keywords.get(keyword, []):
@@ -77,7 +92,7 @@ def scope():
             f"(+) {r['category'].upper()} {r['selection'].upper()} – {r['description']} – 1 {r['unit'].upper()}"
             for r in data if kw in r["description_clean"]
         ]
-    related = related[:5]  # Limit to 5 suggestions
+    related = related[:5]
 
     return jsonify({
         "matched_scope_item": matched_line,
